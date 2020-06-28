@@ -1,0 +1,42 @@
+---
+#
+# This Playbook provisions a new EKS cluster using eksctl
+#
+- hosts: localhost
+  gather_facts: false
+
+  vars:
+    ansible_pyton_interpreter: "{{ ansible_playbook_python }}"
+    app_name: hello-go
+    app_port: 8180
+    image_name: leogh/hello-go
+    replicas: 1
+    state: present
+
+  pre_tasks:
+      - name: Check for Python Dependencies.
+        python_requirements_info:
+          dependencies:
+            - openshift
+            - requests
+            - pyyaml
+
+      - name: Display Ansible Playbook Python Path.
+        debug:
+          msg: "Python Interperter at: {{ ansible_playbook_python }}"
+
+      - name: Check if eksctl is installed.
+        shell: eksctl version
+        register: eksctl_version
+        ignore_errors: true
+        changed_when: false
+        
+      - name: Install eksctl.
+        shell: |
+              curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+              mv /tmp/eksctl /usr/local/bin
+        when: "not eksctl_version.rc == 0"
+          
+      - name: Next Line
+        debug:
+          msg: "Next Line Appears."
