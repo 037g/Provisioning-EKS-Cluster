@@ -1,0 +1,22 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: mission-ingress
+  namespace: mission
+  annotations:
+    kubernetes.io/ingress.class: alb
+    #alb.ingress.kubernetes.io/healthcheck-path: /healthcheck 
+    # WEIGHT BASED DNS
+    #external-dns.alpha.kubernetes.io/set-identifier: cluster01
+    # external-dns.alpha.kubernetes.io/aws-weight: "200"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/tags: Type=arctiq_mission
+spec:
+  rules:
+    - host: $DEPLOY_COLOR.arctiq-mission.com 
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: mission
+              servicePort: 80

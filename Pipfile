@@ -12,6 +12,9 @@ requests = "*"
 docker = "*"
 pep8 = "*"
 kubernetes = "*"
+boto3 = "*"
+boto = "*"
+openshift = "*"
 
 [requires]
 python_version = "3.7"

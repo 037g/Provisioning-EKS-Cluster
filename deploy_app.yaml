@@ -1,0 +1,110 @@
+---
+#
+# This Playbook provisions a new EKS cluster using eksctl
+#
+- hosts: localhost
+  gather_facts: false
+
+  vars:
+    ansible_pyton_interpreter: "{{ ansible_playbook_python }}"
+    app_name: "mission"
+    #
+    # deploy_color: blue
+    # cluster_name: "eks-demo-c1"
+    # aws_region: "us-west-2"
+    #
+    deploy_color: green
+    cluster_name: "eks-demo-c2"
+    aws_region: "us-east-2"
+
+  pre_tasks:
+    - name: Display Ansible Playbook Python Path.
+      debug:
+        msg: "Python Interperter at: {{ ansible_playbook_python }}"
+
+  tasks:
+    - name: Get Context.
+      shell: |
+              kubectl config get-contexts | grep {{ cluster_name }} | awk '{print $2}'
+      register: context_result
+      changed_when: false
+
+
+      
+    - name: Set Cluster Context Fact.
+      set_fact:
+          context: "{{ context_result.stdout }}"
+
+    # Setup External DNS Server First
+    - name: Create only a policy on IAM.
+      shell: |
+              aws iam create-policy \
+                  --policy-name EKS-{{ cluster_name }}-{{ app_name }}-ExternalDNSControllerIAMPolicy-{{ cluster_name | to_uuid }} \
+                  --policy-document file://external-dns-policy.json
+      register: external_dns_iam_policy_result
+      ignore_errors: true
+
+
+    - name: "Print ARN of policy"
+      debug:
+        msg: "{{external_dns_iam_policy_result.stdout_lines[1] | replace('Arn: ','')}}"
+
+
+    - name: Set POLICY_ARN arn.
+      set_fact:
+          POLICY_ARN: "{{external_dns_iam_policy_result.stdout_lines[1] | replace('Arn: ','')}}"
+
+
+    - name: Deploy {{ app_name }}-external-dns server.
+      shell: |
+              export EKS_CLUSTER_NAME={{ cluster_name }}
+              kubectl config use-context {{ context }}
+              cat {{ app_name }}-external-dns.yaml | envsubst | kubectl apply -f -
+      register: "external_dns_deploy_result"
+
+
+    - name: "Print: external_dns_deploy_result"
+      debug:
+        msg: "{{external_dns_deploy_result}}"
+
+
+    - name: Create IAM and attach it to External-DNS service account.
+      shell: |
+              eksctl create iamserviceaccount \
+                --name external-dns \
+                --namespace {{ app_name }} \
+                --cluster {{ cluster_name }} \
+                --region {{ aws_region }} \
+                --attach-policy-arn {{ POLICY_ARN }} \
+                --approve \
+                --override-existing-serviceaccounts
+      register: iam_service_account_result
+      ignore_errors: true
+
+    # Deploy Apps  
+
+    - name: Deploying {{ app_name }}
+      k8s:
+          context: "{{ context }}"
+          state: present
+          definition: "{{ lookup('file', item) }}"
+          wait: true
+      with_items:
+        - mission-namespace.yaml
+        - mission-deployment.yaml
+        - mission-service.yaml
+
+
+    - name: Deploy {{ app_name }}-ingress-controller.
+      shell: |
+              export DEPLOY_COLOR={{ deploy_color }}
+              kubectl config use-context {{ context }}
+              cat {{ app_name }}-ingress-controller.yaml | envsubst | kubectl apply -f -
+      register: "mission_ingress_controller_result"
+
+
+    - name: "Print: {{ app_name }}_ingress_controller_result"
+      debug: var="mission_ingress_controller_result"
+
+
+    

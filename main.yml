@@ -7,36 +7,84 @@
 
   vars:
     ansible_pyton_interpreter: "{{ ansible_playbook_python }}"
-    app_name: hello-go
-    app_port: 8180
-    image_name: leogh/hello-go
-    replicas: 1
-    state: present
+    #
+    # Comment/uncomment to toggle BLUE deploy
+    deploy_color: "BLUE"
+    cluster_name: "eks-demo-c1"
+    vpc_cidr: "10.1.0.0/16"
+    aws_region: "us-west-2"
+    nodegroup_name: "eks-demo-c1-ng1"
+    #
+    # Comment/uncomment to toggle BLUE deploy
+    #
+    # deploy_color: GREEN
+    # cluster_name: eks-demo-c2
+    # vpc_cidr: 10.2.0.0/16
+    # aws_region: us-east-2
+    # nodegroup_name: eks-demo-c2-ng1
+    #
+    # Leave below untouched unless neccessary
+    k8_version: "1.16"
+    node_ssh_key: "~/.ssh/id_rsa_eks_nodes.pub"
+    node_group_nodes: "2"
+    node_group_nodes_min: "2"
+    node_group_nodes_max: "4"
+    node_group_nodes_type: "m5.large"
 
   pre_tasks:
-      - name: Check for Python Dependencies.
-        python_requirements_info:
-          dependencies:
-            - openshift
-            - requests
-            - pyyaml
+    - name: Display Ansible Playbook Python Path.
+      debug:
+        msg: "Python Interperter at: {{ ansible_playbook_python }}"
 
-      - name: Display Ansible Playbook Python Path.
-        debug:
-          msg: "Python Interperter at: {{ ansible_playbook_python }}"
+    - name: Check if eksctl is installed.
+      shell: eksctl version
+      register: eksctl_version
+      ignore_errors: true
+      changed_when: false
 
-      - name: Check if eksctl is installed.
-        shell: eksctl version
-        register: eksctl_version
-        ignore_errors: true
-        changed_when: false
-        
-      - name: Install eksctl.
-        shell: |
-              curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
-              mv /tmp/eksctl /usr/local/bin
-        when: "not eksctl_version.rc == 0"
-          
-      - name: Next Line
-        debug:
-          msg: "Next Line Appears."
+    - name: Install eksctl.
+      when: "not eksctl_version.rc == 0"
+      shell: |
+            curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+            mv /tmp/eksctl /usr/local/bin
+
+  tasks:
+    - name: Check if {{ cluster_name }} cluster is running.
+      shell: eksctl get cluster -o yaml | awk '$2 =="name:" {print $3}'
+      register: prior_cluster_status_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Abort Play. Cluster Exists.
+      when: "prior_cluster_status_check.stdout == cluster_name"
+      fail: msg="Cluster {{ cluster_name }} already exists."
+
+    - name: "Create Cluster {{ cluster_name }}"
+      when: "prior_cluster_status_check.stdout != cluster_name"
+      shell: |
+              eksctl create cluster --name {{ cluster_name }} \
+                --region {{ aws_region }} \
+                --version {{ k8_version }} \
+                --vpc-cidr {{ vpc_cidr }} \
+                --managed \
+                --nodegroup-name {{ nodegroup_name }} \
+                --nodes {{ node_group_nodes }} \
+                --nodes-min {{ node_group_nodes_min }} \
+                --nodes-max {{ node_group_nodes_max }} \
+                --node-type {{ node_group_nodes_type }} \
+                --ssh-access=true \
+                --ssh-public-key={{ node_ssh_key }} \
+                --alb-ingress-access \
+                --asg-access \
+                --tags "Project=Arctiq-Mission,COLOR={{ deploy_color }}"
+      register: cluster_creation_result
+
+    - name: Print Cluster Creation Output
+      when: "prior_cluster_status_check.stdout != cluster_name and cluster_creation_result.rc == 0"
+      debug:
+        msg: "{{ cluster_creation_result.stdout_lines }}"
+
+    - name: Print Cluster Creation Output Errors
+      when: "prior_cluster_status_check.stdout != cluster_name and cluster_creation_result.rc != 0"
+      debug:
+        msg: "{{ cluster_creation_result.stderr_lines }}"
