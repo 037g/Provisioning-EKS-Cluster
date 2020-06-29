@@ -7,11 +7,11 @@
 
   vars:
     ansible_pyton_interpreter: "{{ ansible_playbook_python }}"
-    # cluster_name: "eks-demo-c1"
-    # aws_region: "us-west-2"
+    cluster_name: "eks-demo-cl1"
+    aws_region: "us-west-2"
     #
-    cluster_name: "eks-demo-c2"
-    aws_region: "us-east-2"
+    # cluster_name: "eks-demo-cl2"
+    # aws_region: "us-east-2"
 
   pre_tasks:
     - name: Display Ansible Playbook Python Path.

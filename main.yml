@@ -10,18 +10,18 @@
     #
     # Comment/uncomment to toggle BLUE deploy
     deploy_color: "BLUE"
-    cluster_name: "eks-demo-c1"
+    cluster_name: "eks-demo-cl1"
     vpc_cidr: "10.1.0.0/16"
     aws_region: "us-west-2"
-    nodegroup_name: "eks-demo-c1-ng1"
+    nodegroup_name: "eks-demo-cl1-ng1"
     #
     # Comment/uncomment to toggle BLUE deploy
     #
     # deploy_color: GREEN
-    # cluster_name: eks-demo-c2
+    # cluster_name: eks-demo-cl2
     # vpc_cidr: 10.2.0.0/16
     # aws_region: us-east-2
-    # nodegroup_name: eks-demo-c2-ng1
+    # nodegroup_name: eks-demo-cl2-ng1
     #
     # Leave below untouched unless neccessary
     k8_version: "1.16"
