@@ -17,8 +17,11 @@
         msg: "Python Interperter at: {{ ansible_playbook_python }}"
 
   tasks:
-  
-  - name: Switch to GREEN.
+  - name: Generate Time Stamp.
+    command: "date +%Y-%m-%d-%H-%M-%S"
+    register: date_time
+
+  - name: Switch to GREEN. A Record DNS Change.
     when: env == "green"
     route53:
       state: "{{ state }}"
@@ -40,4 +43,14 @@
       value: blue.arctiq-mission.com
       alias: True
       alias_hosted_zone_id: "{{ zone_id }}"
+      overwrite: true
+
+  - name: Set TXT Record Reflecting DNS Change.
+    route53:
+      state: "{{ state }}"
+      zone: "{{ zone_name }}"
+      record: "arctiq-mission.com"
+      type: TXT
+      ttl: 300
+      value: '"BLUE/GREEN Switched to *!* {{ env | string}} *!* at {{ date_time.stdout | string}}"'
       overwrite: true
