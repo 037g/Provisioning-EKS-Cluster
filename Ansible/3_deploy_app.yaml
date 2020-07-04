@@ -1,0 +1,119 @@
+---
+#
+# This Playbook provisions a new EKS cluster using eksctl
+#
+- hosts: localhost
+  gather_facts: false
+
+  vars:
+    kube_config: "~/.kube/config"
+    k8s_resource_dir: "../k8s_resources"
+    namespace: "mission"
+    # Create -> "present" or delete "absent" deployment.
+    state: "present"
+  vars_files:
+    - "vars/{{ env }}.yml"
+
+  pre_tasks:
+    - name: Display Ansible Playbook Python Path.
+      debug:
+        msg: "Python Interperter at: {{ ansible_playbook_python }}"
+
+    - name: Get Current Cluster's Context.
+      shell: |
+        set -o pipefail && \
+        kubectl config get-contexts | grep {{ cluster_name }} | awk '{print $2}'
+      register: context_result
+      changed_when: false
+
+    - name: Set Cluster Context Fact.
+      set_fact:
+        context: "{{ context_result.stdout }}"
+
+    - name: Print Context
+      debug:
+        msg: "Working on -> {{ context }}"
+
+  tasks:
+    # Deploy Apps
+    - name: "Deploy {{ namespace }} App."
+      k8s:
+        apply: yes
+        kubeconfig: "{{ kube_config }}"
+        context: "{{ context }}"
+        state: "{{ state }}"
+        src: "{{ item }}"
+      with_items:
+        - "{{ k8s_resource_dir }}/{{ namespace }}/1_mission-namespace.yml"
+        - "{{ k8s_resource_dir }}/{{ namespace }}/2_mission-deployment.yml"
+        - "{{ k8s_resource_dir }}/{{ namespace }}/3_mission-service.yml"
+
+    - name: Check/Create IAM Policy EKS-{{ cluster_name }}-{{ namespace }}-ExternalDNSControllerIAMPolicy.
+      iam_managed_policy:
+        policy_name: EKS-{{ cluster_name }}-{{ namespace }}-ExternalDNSControllerIAMPolicy
+        policy_description: "ExternalDNS {{ namespace }} DNS Service Account Policy"
+        policy: "{{ lookup('file', '{{ k8s_resource_dir }}/iam_policies/external-dns-policy.json') }}"
+        state: "{{ state }}"
+      register: external_dns_iam_policy_result
+
+    - name: Capture ARN of EKS-{{ cluster_name }}-{{ namespace }}-ExternalDNSControllerIAMPolicy.
+      when: state == "present"
+      set_fact:
+        POLICY_ARN: "{{ external_dns_iam_policy_result.policy.arn }}"
+
+    - name: Display ARN of EKS-{{ cluster_name }}-{{ namespace }}-ExternalDNSControllerIAMPolicy.
+      when: state == "present"
+      debug:
+        var: POLICY_ARN
+
+    - name: Create IAM service account and attach it to External-DNS.
+      when: state == "present"
+      shell: |
+        set -o pipefail && \
+        eksctl create iamserviceaccount \
+          --name external-dns \
+          --namespace {{ namespace }} \
+          --cluster {{ cluster_name }} \
+          --region {{ aws_region }} \
+          --attach-policy-arn {{ POLICY_ARN }} \
+          --approve \
+          --override-existing-serviceaccounts
+
+    # Regarding the ingress-controller & external-dns life-cycle:
+    #   Creation:
+    #     When state = present (default) they will run and be created because the namespace has been created
+    #   Deletion:
+    #     When state = absent they will run and be deleted once the namespace has been deleted, during the life-cycle of the app deployment above.
+    - name: Deploy {{ namespace }}-ingress-controller with ENV substitution ($DEPLOY_COLOR={{ env }}).
+      when: state == "present"
+      shell: |
+        set -o pipefail && 
+        export DEPLOY_COLOR={{ env }}
+        kubectl config use-context {{ context }}
+        cat {{ k8s_resource_dir }}/{{ namespace }}/4_{{ namespace }}-ingress-controller.yml | envsubst | kubectl apply -f -
+        sleep 5
+        kubectl describe ingress missioningress -n {{ namespace }}
+      register: ingress_controller_creation_result
+
+    - name: Display Ingress Controller Creation Output.
+      when: state == "present"
+      debug:
+        var: ingress_controller_creation_result.stdout_lines
+    - name: Deploy {{ namespace }}-external-dns with ENV substitution ($EKS_CLUSTER_NAME={{ cluster_name }}).
+      when: state == "present"
+      shell: |
+        set -o pipefail && 
+        export EKS_CLUSTER_NAME={{ cluster_name }}
+        kubectl config use-context {{ context }}
+        cat {{ k8s_resource_dir }}/{{ namespace }}/5_{{ namespace }}-external-dns.yml | envsubst | kubectl apply -f -
+        sleep 5
+        kubectl describe deploy external-dns -n {{ namespace }}
+        sleep 5
+        kubectl logs -n {{ namespace }} $(kubectl get po -n {{ namespace }} | egrep -o 'external[A-Za-z0-9-]+')
+      register: external_dns_creation_result
+
+    - name: Display External-DNS Creation Output.
+      when: state == "present"
+      debug:
+        var: external_dns_creation_result.stdout_lines
+

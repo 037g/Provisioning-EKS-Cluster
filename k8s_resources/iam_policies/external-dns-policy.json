@@ -14,7 +14,9 @@
             "Action": [
                 "route53:ChangeResourceRecordSets"
             ],
-            "Resource": ["*"]
+            "Resource": [
+                "arn:aws:route53:::hostedzone/Z0954889165W93WGCKIE8"
+            ]
         }
     ]
 }

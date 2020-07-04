@@ -1,0 +1,11 @@
+cluster_name: "eks-demo-c2"
+aws_region: "us-east-2"
+vpc_cidr: 10.2.0.0/16
+aws_region: us-east-2
+nodegroup_name: eks-demo-cl2-ng1
+k8_version: "1.16"
+node_ssh_key: "~/.ssh/id_rsa_eks_nodes.pub"
+node_group_nodes: "2"
+node_group_nodes_min: "2"
+node_group_nodes_max: "4"
+node_group_nodes_type: "c3.2xlarge"

@@ -1,0 +1,5 @@
+[localhost]
+127.0.0.1 ansilbe_host=localhost ansible_connection=local
+
+[localhost:vars]
+ansible_python_interpreter=/Users/leo/.local/share/virtualenvs/Ansible-C3axT3Gm/bin/python3.7m

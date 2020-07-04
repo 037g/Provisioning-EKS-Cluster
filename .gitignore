@@ -4,12 +4,14 @@
 
 ### Ansible ###
 *.retry
+ansible_logs.tmp
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+Pipfile.lock
 
 # C extensions
 *.so

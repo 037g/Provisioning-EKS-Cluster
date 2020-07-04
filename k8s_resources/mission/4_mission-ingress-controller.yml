@@ -1,7 +1,7 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: mission-ingress
+  name: missioningress  #Do NOT add any - in the name, even though it is allowed, it is not working for some reason! >:(
   namespace: mission
   annotations:
     kubernetes.io/ingress.class: alb
@@ -18,5 +18,5 @@ spec:
         paths:
           - path: /
             backend:
-              serviceName: mission
+              serviceName: mission-service
               servicePort: 80

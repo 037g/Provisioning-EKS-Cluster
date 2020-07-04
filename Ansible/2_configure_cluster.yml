@@ -1,0 +1,98 @@
+---
+#
+# This Playbook provisions a new EKS cluster using eksctl
+#
+- hosts: localhost
+  gather_facts: false
+
+  vars:
+    ansible_pyton_interpreter: "{{ ansible_playbook_python }}"
+    kube_config: "~/.kube/config"
+    k8s_resource_dir: "../k8s_resources"
+    # Create -> "present" or delete "absent" deployment.
+    state: "present"
+
+  vars_files:
+    - "vars/{{ env }}.yml"
+
+  pre_tasks:
+    - name: Display Ansible Playbook Python Path.
+      debug:
+        msg: "Python Interperter at: {{ ansible_playbook_python }}"
+
+    - name: Get Current Cluster's Context.
+      shell: |
+        kubectl config get-contexts | grep {{ cluster_name }} | awk '{print $2}'
+      register: context_result
+      changed_when: false
+
+    - name: Set Cluster Context Fact.
+      set_fact:
+        context: "{{ context_result.stdout }}"
+
+    - name: Print Context
+      debug:
+        msg: "Working on -> {{ context }}"
+
+  tasks:
+    - name: Install Associate-IAM-OIDC-Provider.
+      shell: |
+        eksctl utils associate-iam-oidc-provider \
+          --region "{{ aws_region }}" \
+          --cluster {{ cluster_name }} \
+          --approve
+      register: oidc_result
+
+    - name: Apply RBAC service account for ALB to cluster.
+      k8s:
+        apply: yes
+        kubeconfig: "{{ kube_config }}"
+        context: "{{ context }}"
+        state: "{{ state }}"
+        src: "{{ k8s_resource_dir }}/kube-system/rbac-role.yaml"
+
+    - name: Check/Create IAM Policy EKS-{{ cluster_name }}-ALBIngressControllerIAMPolicy.
+      iam_managed_policy:
+        policy_name: EKS-{{ cluster_name }}-ALBIngressControllerIAMPolicy
+        policy_description: "ALB Load Balancer Policy"
+        policy: "{{ lookup('file', '{{ k8s_resource_dir }}/iam_policies/alb_iam_policy.json') }}"
+        state: present
+      register: alb_iam_policy_result
+
+    - name: Capture ARN of EKS-{{ cluster_name }}-ALBIngressControllerIAMPolicy.
+      set_fact:
+        POLICY_ARN: "{{ alb_iam_policy_result.policy.arn }}"
+
+    - name: Display ARN of EKS-{{ cluster_name }}-ALBIngressControllerIAMPolicy.
+      debug:
+        var: POLICY_ARN
+
+    - name: Deploy ALB Ingress Controller with ENV substitution ($DEPLOY_COLOR={{ env }}).
+      shell: |
+        set -o pipefail && 
+        export EKS_CLUSTER_NAME={{ cluster_name }}
+        kubectl config use-context {{ context }}
+        cat {{ k8s_resource_dir }}/kube-system/alb-ingress-controller.yaml | envsubst | kubectl apply -f -
+        sleep 5
+        kubectl describe deploy alb-ingress-controller -n kube-system
+      register: alb_deployment_creation_result
+
+    - name: Display ALB Ingress Creation Output.
+      debug:
+        var: alb_deployment_creation_result.stdout_lines
+
+    # Create an IAM role for the ALB Ingress Controller and
+    # attach the role to the service account created in the previous step.
+    - name: Create IAM service account and attach it to ALB.
+      shell: |
+        kubectl config use-context {{ context }}
+        eksctl create iamserviceaccount \
+          --name alb-ingress-controller \
+          --namespace kube-system \
+          --cluster {{ cluster_name }} \
+          --region {{ aws_region }} \
+          --attach-policy-arn {{ POLICY_ARN }} \
+          --approve \
+          --override-existing-serviceaccounts
+      register: iam_service_account_result
+      ignore_errors: true
