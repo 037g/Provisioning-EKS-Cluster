@@ -1,6 +1,6 @@
 ---
 #
-# This Playbook provisions a new EKS cluster using eksctl
+# This playbook configures a clean cluster with an AWS ALB. It requires the passing of -e "env=COLOR" to properly set the right values. See vars/ for more details. 
 #
 - hosts: localhost
   gather_facts: false

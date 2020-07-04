@@ -13,10 +13,12 @@ metadata:
     alb.ingress.kubernetes.io/tags: Type=arctiq_mission
 spec:
   rules:
-    - host: $DEPLOY_COLOR.arctiq-mission.com 
+    - host: green.arctiq-mission.com 
+      #- host: $DEPLOY_COLOR.arctiq-mission.com 
       http:
         paths:
-          - path: /
+          - path: /*
             backend:
               serviceName: mission-service
               servicePort: 80
+

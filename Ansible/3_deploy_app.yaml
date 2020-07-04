@@ -1,6 +1,7 @@
 ---
 #
-# This Playbook provisions a new EKS cluster using eksctl
+# This playbook deploys a K8s application (namespace, deployment, service, ingress) and an External-DNS service to manage public DNS entries.
+# It requires the passing of -e "env=COLOR" to properly set the right values. See vars/ for more details. 
 #
 - hosts: localhost
   gather_facts: false

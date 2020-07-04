@@ -61,7 +61,7 @@
     - name: Print Cluster Creation Output
       when: "prior_cluster_status_check.stdout != cluster_name and cluster_creation_result.rc == 0"
       debug:
-        var: "{{ cluster_creation_result.stdout_lines }}"
+        var: "{{ cluster_creation_result.stdout }}"
 
     - name: Print Cluster Creation Output Errors
       when: "prior_cluster_status_check.stdout != cluster_name and cluster_creation_result.rc != 0"
