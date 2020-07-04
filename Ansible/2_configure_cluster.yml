@@ -22,7 +22,8 @@
 
     - name: Get Current Cluster's Context.
       shell: |
-        kubectl config get-contexts | grep {{ cluster_name }} | awk '{print $2}'
+        set -o pipefail && \
+        kubectl config get-contexts | cut -d\  -f2- | grep {{ cluster_name }} | awk '{print $1}'
       register: context_result
       changed_when: false
 
