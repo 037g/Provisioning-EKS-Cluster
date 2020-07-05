@@ -1,7 +1,7 @@
 ---
 #
 # This playbook deploys a K8s application (namespace, deployment, service, ingress) and an External-DNS service to manage public DNS entries.
-# It requires the passing of -e "env=COLOR" to properly set the right values. See vars/ for more details. 
+# It requires the passing of -e "env=COLOR" to properly set the right values. See vars/ for more details.
 #
 - hosts: localhost
   gather_facts: false
@@ -88,7 +88,7 @@
     - name: Deploy {{ namespace }}-ingress-controller with ENV substitution ($DEPLOY_COLOR={{ env }}).
       when: state == "present"
       shell: |
-        set -o pipefail && 
+        set -o pipefail && \
         export DEPLOY_COLOR={{ env }}
         kubectl config use-context {{ context }}
         cat {{ k8s_resource_dir }}/{{ namespace }}/4_{{ namespace }}-ingress-controller.yml | envsubst | kubectl apply -f -
@@ -103,7 +103,7 @@
     - name: Deploy {{ namespace }}-external-dns with ENV substitution ($EKS_CLUSTER_NAME={{ cluster_name }}).
       when: state == "present"
       shell: |
-        set -o pipefail && 
+        set -o pipefail &&
         export EKS_CLUSTER_NAME={{ cluster_name }}
         kubectl config use-context {{ context }}
         cat {{ k8s_resource_dir }}/{{ namespace }}/5_{{ namespace }}-external-dns.yml | envsubst | kubectl apply -f -
@@ -117,4 +117,3 @@
       when: state == "present"
       debug:
         var: external_dns_creation_result.stdout_lines
-

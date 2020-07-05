@@ -23,8 +23,9 @@
     - name: Install eksctl.
       when: "not eksctl_version.rc == 0"
       shell: |
-            curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
-            mv /tmp/eksctl /usr/local/bin
+        set -o pipefail && \
+        curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+        mv /tmp/eksctl /usr/local/bin
 
   tasks:
     - name: Check if {{ cluster_name }} cluster is running.
@@ -40,22 +41,22 @@
     - name: "Create Cluster {{ cluster_name }}"
       when: "prior_cluster_status_check.stdout != cluster_name"
       shell: |
-              eksctl create cluster --name {{ cluster_name }} \
-                --region {{ aws_region }} \
-                --version {{ k8_version }} \
-                --vpc-cidr {{ vpc_cidr }} \
-                --managed \
-                --nodegroup-name {{ nodegroup_name }} \
-                --nodes {{ node_group_nodes }} \
-                --nodes-min {{ node_group_nodes_min }} \
-                --nodes-max {{ node_group_nodes_max }} \
-                --node-type {{ node_group_nodes_type }} \
-                --ssh-access=true \
-                --ssh-public-key={{ node_ssh_key }} \
-                --external-dns-access \
-                --alb-ingress-access \
-                --asg-access \
-                --tags "Project=Arctiq-Mission,COLOR={{ env }}"
+        eksctl create cluster --name {{ cluster_name }} \
+          --region {{ aws_region }} \
+          --version {{ k8_version }} \
+          --vpc-cidr {{ vpc_cidr }} \
+          --managed \
+          --nodegroup-name {{ nodegroup_name }} \
+          --nodes {{ node_group_nodes }} \
+          --nodes-min {{ node_group_nodes_min }} \
+          --nodes-max {{ node_group_nodes_max }} \
+          --node-type {{ node_group_nodes_type }} \
+          --ssh-access=true \
+          --ssh-public-key={{ node_ssh_key }} \
+          --external-dns-access \
+          --alb-ingress-access \
+          --asg-access \
+          --tags "Project=Arctiq-Mission,COLOR={{ env }}"
       register: cluster_creation_result
 
     - name: Print Cluster Creation Output

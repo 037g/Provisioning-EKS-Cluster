@@ -1,6 +1,6 @@
 ---
 #
-# This playbook configures a clean cluster with an AWS ALB. It requires the passing of -e "env=COLOR" to properly set the right values. See vars/ for more details. 
+# This playbook configures a clean cluster with an AWS ALB. It requires the passing of -e "env=COLOR" to properly set the right values. See vars/ for more details.
 #
 - hosts: localhost
   gather_facts: false
@@ -70,7 +70,7 @@
 
     - name: Deploy ALB Ingress Controller with ENV substitution ($DEPLOY_COLOR={{ env }}).
       shell: |
-        set -o pipefail && 
+        set -o pipefail && \
         export EKS_CLUSTER_NAME={{ cluster_name }}
         kubectl config use-context {{ context }}
         cat {{ k8s_resource_dir }}/kube-system/alb-ingress-controller.yaml | envsubst | kubectl apply -f -
