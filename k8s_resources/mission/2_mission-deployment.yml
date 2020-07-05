@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,8 +15,8 @@ spec:
         app: mission
     spec:
       containers:
-      - image: leogh/mission:blue
-        imagePullPolicy: Always
-        name: mission
-        ports:
-        - containerPort: 8180
+        - image: leogh/mission:blue
+          imagePullPolicy: Always
+          name: mission
+          ports:
+            - containerPort: 8180
