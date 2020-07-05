@@ -18,7 +18,7 @@ of your choice
 - [x] Perform blue/green routing to the application across both clusters
     - [x] Accomplished through Ansible Playbook 4_Blue_Green_Route53_Switch.yml and setting the --external-variable of "env=blue/green".
 - [ ] BONUS - Automate the traffic routing through a GitOps approach
-    - [ ] Blocked by CD above. Will 
+    - [ ] Blocked by CD above. TODO Item.
 
 ## WALK THROUGH
 Each EKS cluster will be created independently by running the playbook with `-e "env=blue/green"` from the **Ansible** directory. 
@@ -28,10 +28,10 @@ The Ansible Scripts should be run in the following order:
 
 | Run Order  |  Description |
 |-|-|
-|  [1_Build_Cluster.yml](./k8s_resources/mission/1_Build_Cluster.yml) | Provisions the cluster with [eksctl v0.22.0](https://eksctl.io/).  |
-|  [2_Configure_Cluster.yml](./k8s_resources/mission/2_Configure_Cluster.yml) | Configures [ALB Ingress Controller v1.16](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/) |
-|  [3_Deploy_App.yml](./k8s_resources/mission/3_Deploy_App.yml) |  Configures [External-DNS v0.7.2](https://github.com/kubernetes-sigs/external-dns) and Deploys Application >Ingress, Svc, Deployment | 
-|  [4_Blue_Green_Route53_Switch.yml](./k8s_resources/mission/4_Blue_Green_Route53_Switch.yml) |  Configures External DNS and Deploys Application (Ingress, Svc, Deployment) | 
+|  [1_Build_Cluster.yml](/Ansible/1_build_cluster.yml) | Provisions the cluster with [eksctl v0.22.0](https://eksctl.io/).  |
+|  [2_Configure_Cluster.yml](/Ansible/2_configure_cluster.yml) | Configures [ALB Ingress Controller v1.16](https://kubernetes-sigs.github.io/aws-alb-ingress-controller/) |
+|  [3_Deploy_App.yml](/Ansible/3_deploy_app.yml) |  Configures [External-DNS v0.7.2](https://github.com/kubernetes-sigs/external-dns) and Deploys Application >Ingress, Svc, Deployment | 
+|  [4_Blue_Green_Route53_Switch.yml](/Ansible/4_Blue_Green_Route53_Switch.yml) |  Configures External DNS and Deploys Application (Ingress, Svc, Deployment) | 
 
 #### Requirements
 The project was developed/tested with the following versions. Please ensure they are installed and configured (awscli).
@@ -99,7 +99,7 @@ script:
 #### 1. Cluster Provisioning
 Creating the EKS Cluster.
 
- 1. Review/Set Cluster provisioning settings in the vars directory (blue/green.yml).
+ 1. Review/Set Cluster provisioning settings in the files at vars/[blue.yml](/Ansible/vars/blue.yml) & [green.yml](/Ansible/vars/green.yml).
  2. Activate the python virtual environment with pipenv.
     - >`pipenv shell`
     - >`pipenv install --requirements requirements.txt`
@@ -107,14 +107,14 @@ Creating the EKS Cluster.
     - ie. `ansible_python_interpreter=/Users/admin/.local/share/virtualenvs/Ansible-C3axT3Gm/bin/python3.7m`
  4. Deploy the cluster sequentially, allowing each playbook to complete before starting the next one.
     - *The playbooks will use Eksctl's Cloudformation stack to deploy an EKS cluster with 1 NodeGroup containing 2 nodes. *Note the location of the ssh key in the vars/*.yml. Set this key to your key or generate a new one to allow SSH access to the nodes for debugging purposes. If you do not set this key, you will not be able to set it later and will not have access to the EC2 nodes through SSH.*
-  5. Run the Playbook: 1_Build_Cluster.yml
+  5. Run the Playbook: [1_Build_Cluster.yml](/Ansible/1_build_cluster.yml) 
     - > `ansible-playbook 1_Build_Cluster.yml -e "env=blue"`
     - > `ansible-playbook 1_Build_Cluster.yml -e "env=green"`
 
 #### 2. Cluster Configuration
 Configuring and adding AWS-ALB-INGRESS support. *The playbook will infer the right kubeconfig context based on the color.*
 
- 1. Run the Playbook: 2_Configure_Cluster.yml
+ 1. Run the Playbook: [2_Configure_Cluster.yml](/Ansible/2_configure_cluster.yml)
     - > `ansible-playbook 2_Configure_Cluster.yml -e "env=blue"`
     - > `ansible-playbook 2_Configure_Cluster.yml -e "env=green"`
 
@@ -123,7 +123,7 @@ kubectl logs -f -n kube-system (kubectl get po -n kube-system | egrep -o 'alb-in
 #### 3. Deployment
 Deploying the application using Ansible. This is a non-Git-Ops approach but will serve as a proof of concept that the cluster is working properly. *The playbook will infer the right kubeconfig context based on the color.*
 
- 1. Run the Playbook: 3_Deploy_App.yml
+ 1. Run the Playbook: [3_Deploy_App.yml](/Ansible/3_deploy_app.yml)
     - > `ansible-playbook 3_Deploy_App.yml -e "env=blue"`
     - > `ansible-playbook 3_Deploy_App.yml -e "env=green"`
 
@@ -131,7 +131,7 @@ Deploying the application using Ansible. This is a non-Git-Ops approach but will
  - A copy of External-DNS will be deployed into the application's namespace.
  - External-DNS will monitor for ingress controllers and upsert A records in Route53.
  
-![Demo of Step 4 with ExternalDNS Record Change](Docs/Assets/external-dns-demo.gif)*Demo of Step 4 with ExternalDNS Record Change*
+![Demo of Step 3 with ExternalDNS Record Change](Docs/Assets/external-dns-demo.gif)*Demo of Step 3 with ExternalDNS Record Change*
 
 #### 4. Switch to Blue/Green
 Once both clusters are up and have gone through playbooks 1-3, you can
@@ -146,14 +146,16 @@ You will have access to each copy directly through:
 
 To change the apex of the domain arctiq-mission.com to point to either Blue or Green deployments:
 
-1. Run the Playbook: 4_Blue_Green_Route53_Switch.yml with the color you wish the apex to become active with.
+1. Run the Playbook: [4_Blue_Green_Route53_Switch.yml](/Ansible/4_Blue_Green_Route53_Switch.yml) with the color you wish the apex to become active with.
     - > `ansible-playbook 4_Blue_Green_Route53_Switch.yml -e "env=blue"` # Switches root domain to BLUE
-        - *This process will also upsert a TXT record indicating the deployment color and date of switch. This can inform other monitoring, reporting, and CI/CD processes.*
+       - *This process will also upsert a TXT record indicating the deployment color and date of switch. This can inform other monitoring, reporting, and CI/CD processes.*
 
-![Demo of Step 4 BLUE/GREEN Switch](Docs/Assets/blue-green-switch-demo.gif)*Demo of Step 4 BLUE/GREEN Switch*
+> arctiq-mission.com.  TXT  "BLUE/GREEN Switched to *!* green *!* at 2020-07-04-22-36-53"
+    
+![Demo of Step 4 BLUE/GREEN Switch](Docs/Assets/blue-green-switch-demo.gif)*Demo of Step 4 BLUE/GREEN Switch*.
 
 ## Git-Ops Approach (todo)
-To operate in a Git-Ops approach, from a **single** repository serving two separate cluster's, we will have to split the **K8s_resources/mission** folder structure into two subfolders for each deployment.
+To operate in a Git-Ops approach, from a **single** repository serving two separate clusters, we will have to split the **K8s_resources/mission** folder structure into two subfolders, one for each deployment.
 
         .
         ├── iam_policies
@@ -182,7 +184,7 @@ To acocmplish this, we will need to use [flux](https://fluxcd.io) & [kustomize](
 
 *Flux monitors all of the container image repositories that you specify. It detects new images, triggers deployments, and automatically updates the desired running configuration of your Kubernetes cluster—and does so within the bounds of a configurable deployment policy.* Source([flux](https://fluxcd.io))
 
-#### High Level Plan:
+#### High Level Action Plan:
 - External-DNS will handle record creation.
 - Flux will ensure the latest image:tag and K8 Objects are running. On each cluster, Flux will be partitioned to either path (Blue/Green) `--git-path` to constrain where Flux starts looking.
 - kustomize will handle overlay and patch syntax.
