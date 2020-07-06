@@ -103,13 +103,13 @@ Creating the EKS Cluster.
  2. Activate the python virtual environment with pipenv.
     - >`pipenv shell`
     - >`pipenv install --requirements requirements.txt`
- 3. In the Inventory file, set the ansible_python_interpreter variable to point to your Python distribution in the Virtual Environment Path:
+ 3. In the Inventory file, set the ansible_python_interpreter variable to point to **your** Python distribution in the Virtual Environment Path:
     - ie. `ansible_python_interpreter=/Users/admin/.local/share/virtualenvs/Ansible-C3axT3Gm/bin/python3.7m`
  4. Deploy the cluster sequentially, allowing each playbook to complete before starting the next one.
     - *The playbooks will use Eksctl's Cloudformation stack to deploy an EKS cluster with 1 NodeGroup containing 2 nodes. *Note the location of the ssh key in the vars/*.yml. Set this key to your key or generate a new one to allow SSH access to the nodes for debugging purposes. If you do not set this key, you will not be able to set it later and will not have access to the EC2 nodes through SSH.*
-  5. Run the Playbook: [1_Build_Cluster.yml](/Ansible/1_build_cluster.yml) 
-    - > `ansible-playbook 1_Build_Cluster.yml -e "env=blue"`
-    - > `ansible-playbook 1_Build_Cluster.yml -e "env=green"`
+  5. Run the Playbook: [1_Build_Cluster.yml](/Ansible/1_build_cluster.yml)
+        - > `ansible-playbook 1_Build_Cluster.yml -e "env=blue"`
+        - > `ansible-playbook 1_Build_Cluster.yml -e "env=green"`
 
 #### 2. Cluster Configuration
 Configuring and adding AWS-ALB-INGRESS support. *The playbook will infer the right kubeconfig context based on the color.*
