@@ -4,7 +4,7 @@ python:
 
 # command to install dependencies
 install:
-- pip install -r Ansible/requirements.txt
+- pip install yamllint ansible-lint
 # command to run tests
 script:
 - ansible-lint Ansible/*.yml -x 303,701,601,206,602,403,301,502,305,306 -v
